@@ -42,11 +42,15 @@
   }
 
   class Kashida {
+    // The word is cut at each joint into self-contained pieces that END (or start) in a
+    // tatweel — «پـ» + «ـل». A tatweel tells every engine, Safari included, which form
+    // the neighbouring letter takes, so each piece is shaped correctly on its own.
+    // Between pieces sits a flat bar cut to the tatweel's exact stroke; its width is
+    // continuous, so the stretch grows smoothly, pixel by pixel, in both directions.
     constructor(el) {
       this.el = el;
       this.text = el.dataset.kx;
       this.joints = (el.dataset.joints ? el.dataset.joints.split(',').map(Number) : autoJoints(this.text)).sort((a, b) => a - b);
-      this.n = this.joints.map(() => 0);
       el.textContent = '';
       const sr = document.createElement('span');
       sr.className = 'sr-only';
@@ -54,54 +58,60 @@
       this.vis = document.createElement('span');
       this.vis.className = 'kx-in';
       this.vis.setAttribute('aria-hidden', 'true');
-      this.node = document.createTextNode('');
-      this.vis.append(this.node);
+      this.segs = [];
+      this.bars = [];
+      let last = 0;
+      const seg = (s) => {
+        const e = document.createElement('span');
+        e.className = 'kseg';
+        e.textContent = s;
+        this.vis.append(e);
+        this.segs.push(e);
+      };
+      this.joints.forEach((j, i) => {
+        seg((i ? TATWEEL : '') + this.text.slice(last, j + 1) + TATWEEL);
+        const bar = document.createElement('span');
+        bar.className = 'kbar';
+        this.vis.append(bar);
+        this.bars.push(bar);
+        last = j + 1;
+      });
+      seg((this.joints.length ? TATWEEL : '') + this.text.slice(last));
       el.append(sr, this.vis);
-      this.render();
-    }
-    // The stretch is the font's own tatweel glyphs inside ONE unbroken run of text, so
-    // every engine (Safari included) shapes the joins itself. Never put an element
-    // between letters: WebKit breaks the cursive join at any element boundary.
-    render() {
-      let s = '', last = 0;
-      this.joints.forEach((j, i) => { s += this.text.slice(last, j + 1) + TATWEEL.repeat(this.n[i]); last = j + 1; });
-      this.node.data = s + this.text.slice(last);
+      this.len = 0;
+      this.tw = 0;
     }
     measure() {
-      const keep = this.n.slice();
-      this.n = this.n.map(() => 0);
-      this.render();
+      const cs = getComputedStyle(this.el);
+      this.fs = parseFloat(cs.fontSize);
+      const c = Kashida.ctx || (Kashida.ctx = document.createElement('canvas').getContext('2d'));
+      c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const m = c.measureText(TATWEEL);
+      this.tw = m.width;
+      this.asc = m.actualBoundingBoxAscent;
+      this.vis.style.setProperty('--kb', (-m.actualBoundingBoxDescent).toFixed(2) + 'px');
+      this.vis.style.setProperty('--kh', (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent).toFixed(2) + 'px');
+      const keep = this.len;
+      this.setLen(0);
       this.natural = this.vis.getBoundingClientRect().width;
-      this.tw = 1;
-      if (this.joints.length) {
-        this.n[0] = 10;
-        this.render();
-        this.tw = (this.vis.getBoundingClientRect().width - this.natural) / 10 || 1;
-      }
-      this.fs = parseFloat(getComputedStyle(this.el).fontSize);
-      this.n = keep;
-      this.render();
+      this.setLen(keep);
       return this;
     }
-    // total tatweels, spread across the joints
-    set(total) {
-      const t = Math.max(0, Math.round(total)), J = this.joints.length || 1;
-      this.n = this.joints.map((_, i) => Math.floor(t / J) + (i < t % J ? 1 : 0));
-      this.render();
+    // total extra length in px, shared across the joints
+    setLen(px) {
+      this.len = Math.max(0, px);
+      const per = this.len / (this.bars.length || 1);
+      const extra = per - 2 * this.tw; // each joint already carries two tatweels
+      this.bars.forEach((b) => {
+        b.style.width = Math.max(0, extra).toFixed(2) + 'px';
+        b.style.marginLeft = Math.min(0, extra).toFixed(2) + 'px';
+      });
     }
-    count(px) { return Math.max(0, Math.floor(px / this.tw)); }
-    total() { return this.n.reduce((a, b) => a + b, 0); }
-    // box of the first characters (e.g. the opening letter) or of a tatweel run
-    rangeRect(start, end) {
-      const r = document.createRange();
-      r.setStart(this.node, start);
-      r.setEnd(this.node, Math.min(end, this.node.data.length));
-      return r.getBoundingClientRect();
-    }
-    runRect(i = 0) {
-      let start = this.joints[i] + 1;
-      for (let k = 0; k < i; k++) start += this.n[k];
-      return this.rangeRect(start, start + this.n[i]);
+    // the open stretch between the pieces either side of joint i
+    gapRect(i = 0) {
+      const a = this.segs[i].getBoundingClientRect(), b = this.segs[i + 1].getBoundingClientRect();
+      const left = b.right - this.tw, right = a.left + this.tw;
+      return { left, right, width: Math.max(0, right - left), top: a.top, bottom: a.bottom };
     }
   }
 
@@ -204,20 +214,20 @@
     });
   }
 
-  /* ═════════ HERO: one calligraphic stretch per word, opened once ═════════ */
+  /* ═════════ HERO: one calligraphic stretch per word ═════════ */
   function initHero() {
     const host = $('.hero-name');
     const lines = $$('.kx', host).map((el) => new Kashida(el));
     const st = { p: RM ? 1 : 0 };
-    let n = 0;
-    const apply = () => lines.forEach((l) => l.set(n * st.p));
+    let L = 0;
+    const apply = () => lines.forEach((l) => l.setLen(L * st.p));
     const measure = () => {
-      lines.forEach((l) => l.set(0));
+      lines.forEach((l) => l.setLen(0));
       host.style.fontSize = '';
       lines.forEach((l) => l.measure());
-      // about 0.8em of stretch — the length a calligrapher would actually draw
-      n = Math.max(1, Math.round((0.8 * lines[0].fs) / lines[0].tw));
-      fitWidth(host, lines, host.getBoundingClientRect().width, () => Math.max(...lines.map((l) => l.natural + n * l.tw)));
+      L = 0.8 * lines[0].fs; // about the length a calligrapher would actually draw
+      fitWidth(host, lines, host.getBoundingClientRect().width, () => Math.max(...lines.map((l) => l.natural + L)));
+      L = 0.8 * lines[0].fs;
       apply();
     };
     measure();
@@ -225,7 +235,7 @@
     if (hasGSAP && !RM) {
       gsap.timeline({ delay: 0.15 })
         .from('.hero-name .line', { yPercent: 50, opacity: 0, duration: 1.1, stagger: 0.12, ease: 'expo.out' })
-        .to(st, { p: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: apply }, 0.55)
+        .to(st, { p: 1, duration: 1.2, ease: 'expo.inOut', onUpdate: apply }, 0.45)
         .from('.portrait', { y: 30, opacity: 0, duration: 1.3, ease: 'expo.out' }, 0.25)
         .from('.hero .reveal-up', { y: 24, opacity: 0, duration: 0.9, stagger: 0.08, ease: 'expo.out' }, 0.7);
     }
@@ -247,32 +257,26 @@
       return s;
     });
     const st = { p: RM ? 1 : 0 };
-    let headW = 0, laneW = 0;
+    let laneW = 0;
 
-    function apply() {
-      // reveal right→left: پ first, then the deck, then ل
-      const W = k.vis.getBoundingClientRect().width;
-      const cut = Math.max(0, (W - headW) * (1 - st.p));
-      k.vis.style.clipPath = `inset(-40% 0 -40% ${cut.toFixed(1)}px)`;
-    }
+    let max = 0;
+    // both letters are always there; the deck grows between them and pushes them apart
+    function apply() { k.setLen(max * st.p); }
     function calc() {
-      k.set(0);
+      k.setLen(0);
       word.style.fontSize = '';
       k.measure();
-      const avail = word.getBoundingClientRect().width;
-      k.set(k.count(avail * 0.97 - k.natural));
-      headW = k.rangeRect(0, 1).width;
-      // the lane rides just above the deck
-      const run = k.runRect(0), wr = word.getBoundingClientRect();
-      const c = Kashida.ctx || (Kashida.ctx = document.createElement('canvas').getContext('2d'));
-      const cs = getComputedStyle(k.el);
-      c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      max = Math.max(0, word.getBoundingClientRect().width * 0.97 - k.natural);
+      // lay the lane on the finished deck, just above the stroke
+      k.setLen(max);
+      const gap = k.gapRect(0), wr = word.getBoundingClientRect(), r0 = k.segs[0].getBoundingClientRect();
+      const c = Kashida.ctx;
       const m = c.measureText(TATWEEL);
-      const baseline = run.top + (m.fontBoundingBoxAscent || k.fs * 0.9);
-      const barTop = baseline - (m.actualBoundingBoxAscent || k.fs * 0.3);
-      laneW = Math.max(0, run.width - 24);
+      const baseline = r0.top + (m.fontBoundingBoxAscent || k.fs * 0.9);
+      const barTop = baseline - (k.asc || k.fs * 0.3);
+      laneW = Math.max(0, gap.width - 24);
       lane.style.top = (barTop - wr.top - 40).toFixed(1) + 'px';
-      lane.style.left = (run.left - wr.left + 12).toFixed(1) + 'px';
+      lane.style.left = (gap.left - wr.left + 12).toFixed(1) + 'px';
       lane.style.width = laneW + 'px';
       apply();
     }
@@ -307,21 +311,20 @@
     } else travellers.forEach((s) => (s.style.display = 'none'));
 
     if (!hasGSAP || RM) return { calc };
-    const mm = gsap.matchMedia();
-    mm.add('(min-width: 821px)', () => {
-      gsap.set('.pier', { opacity: 0, y: 30 });
-      gsap.set('.bridge-q', { opacity: 0, y: 24 });
-      gsap.timeline({
-        scrollTrigger: { trigger: sec, start: 'top top', end: () => '+=' + Math.round(innerHeight * 1.4), pin: true, scrub: 0.7, onRefresh: calc },
-      })
-        .to(st, { p: 1, duration: 1, ease: 'power2.inOut', onUpdate: apply })
-        .to('.pier', { opacity: 1, y: 0, duration: 0.3, stagger: 0.08 }, 0.72)
-        .to('.bridge-q', { opacity: 1, y: 0, duration: 0.3 }, 0.85)
-        .to({}, { duration: 0.35 });
-    });
-    // phones: no pinning (it fights the iOS address bar) — the deck builds as it scrolls past
-    mm.add('(max-width: 820px)', () => {
-      gsap.to(st, { p: 1, ease: 'none', onUpdate: apply, scrollTrigger: { trigger: word, start: 'top 85%', end: 'top 35%', scrub: 0.5 } });
+    // The stage is position:sticky — the browser holds it in place while you scroll
+    // at your own pace; scroll position only *drives* the drawing. No pinning, no snapping.
+    const piers = $$('.pier'), quote = $('.bridge-q');
+    const show = (el, v) => { el.style.opacity = v.toFixed(3); el.style.transform = `translate3d(0,${(1 - v) * 24}px,0)`; };
+    const progress = (s) => {
+      const q = s.progress;
+      st.p = clamp(q / 0.6, 0, 1);
+      apply();
+      piers.forEach((el, i) => show(el, clamp((q - 0.55 - i * 0.05) / 0.2, 0, 1)));
+      show(quote, clamp((q - 0.7) / 0.2, 0, 1));
+    };
+    ScrollTrigger.create({
+      trigger: sec, start: 'top top', end: 'bottom bottom',
+      onUpdate: progress, onRefresh: (s) => { calc(); progress(s); },
     });
     return { calc };
   }
@@ -737,17 +740,12 @@
     if (!el._k) el._k = new Kashida(el);
     const k = el._k, host = el.parentElement;
     const st = { p: RM ? 1 : 0 };
-    let headW = 0;
-    const apply = () => {
-      const W = k.vis.getBoundingClientRect().width;
-      const cut = Math.max(0, (W - headW) * (1 - st.p));
-      k.vis.style.clipPath = `inset(-40% 0 -40% ${cut.toFixed(1)}px)`;
-    };
+    let max = 0;
+    const apply = () => k.setLen(max * st.p);
     const calc = () => {
-      k.set(0);
+      k.setLen(0);
       k.measure();
-      k.set(k.count(host.getBoundingClientRect().width * 0.96 - k.natural));
-      headW = k.rangeRect(0, 2).width;
+      max = Math.max(0, host.getBoundingClientRect().width * 0.96 - k.natural);
       apply();
     };
     calc();
@@ -756,7 +754,7 @@
     if (!hasGSAP || RM) return kills;
     const tw = gsap.to(st, {
       p: 1, ease: 'none', onUpdate: apply,
-      scrollTrigger: { trigger: el, scroller, start: 'top 90%', end: 'top 40%', scrub: 0.6 },
+      scrollTrigger: { trigger: el, scroller, start: 'top 90%', end: 'top 35%', scrub: true },
     });
     kills.push(() => { tw.scrollTrigger && tw.scrollTrigger.kill(); tw.kill(); });
     return kills;
@@ -1011,14 +1009,19 @@
     const years = { 'pc-a': '۱۴۰۱', 'pc-b': '۱۴۰۳', 'pc-c': '۱۴۰۴', 'pc-edu': '۱۳۹۵' };
     Object.entries(years).forEach(([c, y]) => { const el = $('.' + c); if (el) el.dataset.y = y; });
     if (!hasGSAP || RM) return;
-    const mm = gsap.matchMedia();
-    mm.add('(min-width: 821px)', () => {
-      const track = $('.path-track');
-      const dist = () => Math.max(0, track.scrollWidth - innerWidth);
-      gsap.to(track, {
-        x: () => dist(), ease: 'none',
-        scrollTrigger: { trigger: '.path', start: 'top top', end: () => '+=' + dist(), pin: true, scrub: 0.7, invalidateOnRefresh: true },
-      });
+    // Keep scrolling down; the cards slide sideways. The stage is sticky, the section is
+    // exactly as tall as the sideways distance, so the motion is 1:1 with your scroll.
+    const sec = $('.path'), stage = $('.path-pin'), track = $('.path-track');
+    let dist = 0;
+    const size = () => {
+      track.style.transform = 'none';
+      dist = Math.max(0, track.scrollWidth - innerWidth);
+      sec.style.height = (stage.offsetHeight + dist) + 'px';
+    };
+    size();
+    ScrollTrigger.create({
+      trigger: sec, start: 'top top', end: 'bottom bottom', onRefreshInit: size,
+      onUpdate: (s) => { track.style.transform = `translate3d(${(s.progress * dist).toFixed(1)}px,0,0)`; },
     });
   }
 
@@ -1044,26 +1047,27 @@
     });
   }
 
-  /* ═════════ CONTACT: «تمـــاس», fitted to the screen ═════════ */
+  /* ═════════ CONTACT: «تمـــاس», stretched by your scroll, fitted to the screen ═════════ */
   function initContact() {
-    const sec = $('.contact');
     const host = $('.ct-hello');
     const k = new Kashida($('.kx', host));
     const st = { p: RM ? 1 : 0 };
-    let n = 0;
+    let L = 0;
+    const apply = () => k.setLen(L * st.p);
     const calc = () => {
-      k.set(0);
+      k.setLen(0);
       host.style.fontSize = '';
       k.measure();
-      n = Math.max(1, Math.round((0.9 * k.fs) / k.tw));
+      L = 1.1 * k.fs;
       const pad = parseFloat(getComputedStyle(host).paddingLeft) * 2;
-      fitWidth(host, [k], host.clientWidth - pad, () => k.natural + n * k.tw);
-      k.set(n * st.p);
+      fitWidth(host, [k], host.clientWidth - pad, () => k.natural + L);
+      L = 1.1 * k.fs;
+      apply();
     };
     calc();
     addEventListener('resize', calc);
     if (hasGSAP && !RM) {
-      gsap.to(st, { p: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: () => k.set(n * st.p), scrollTrigger: { trigger: host, start: 'top 80%', once: true } });
+      gsap.to(st, { p: 1, ease: 'none', onUpdate: apply, scrollTrigger: { trigger: host, start: 'top 95%', end: 'top 35%', scrub: true } });
     }
 
     const btn = $('.ct-mail');

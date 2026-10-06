@@ -82,10 +82,10 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
 /* ───────── kashida ───────── */
 .kx { display: inline-block; white-space: nowrap; }
 .kx-in { display: inline-block; white-space: nowrap; }
-.kj { display: inline-block; position: relative; width: 0; height: 0; vertical-align: baseline; }
-/* a flat bar cut to the exact height and thickness of the font's joining stroke —
-   square ends tucked into the neighbouring letters, so the stretch has no seams */
-.kg { position: absolute; left: -2px; right: -2px; bottom: var(--kb, 0px); height: var(--kh, .1em); background: currentColor; }
+.kseg { display: inline-block; white-space: nowrap; }
+.kbar { display: inline-block; position: relative; height: 0; vertical-align: baseline; }
+/* the deck: a flat bar cut to the tatweel's own stroke, tucked 3px into the pieces either side */
+.kbar::before { content: ""; position: absolute; left: -3px; right: -3px; bottom: var(--kb, 0px); height: var(--kh, .1em); background: currentColor; }
 .kx-bl { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
 
 /* ───────── chrome ───────── */
@@ -186,8 +186,8 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 @keyframes cue { 0% { transform: scaleX(.15); } 55% { transform: scaleX(1); } 100% { transform: scaleX(.15); } }
 
 /* ───────── BRIDGE ───────── */
-.bridge { position: relative; height: 100svh; overflow: hidden; }
-.bridge-stage { position: absolute; inset: 0; display: grid; place-items: center; padding-inline: var(--gut); }
+.bridge { position: relative; height: 230svh; }
+.bridge-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; display: grid; place-items: center; padding-inline: var(--gut); }
 .bridge-word {
   position: relative; width: 100%; text-align: center; white-space: nowrap;
   font: 400 min(30vw, 54vh)/1 var(--f-d); color: var(--violet); margin-top: 4vh;
@@ -204,7 +204,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 .pier-r { right: var(--gut); text-align: right; }
 .pier-l { left: var(--gut); text-align: left; }
 .bridge-q {
-  position: absolute; bottom: clamp(36px, 9vh, 96px); left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: clamp(36px, 9vh, 96px); left: 0; right: 0; margin-inline: auto;
   width: min(880px, calc(100% - 2 * var(--gut))); text-align: center;
   font: 500 clamp(18px, 1.7vw, 28px)/1.8 var(--f-t);
 }
@@ -407,7 +407,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 
 /* ───────── PATH ───────── */
 .path { position: relative; }
-.path-pin { height: 100svh; overflow: hidden; display: flex; align-items: center; }
+.path-pin { position: sticky; top: 0; height: 100svh; overflow: hidden; display: flex; align-items: center; }
 .path-track { display: flex; gap: clamp(18px, 2.4vw, 40px); padding-inline: var(--gut); width: max-content; height: min(78svh, 760px); will-change: transform; }
 .pcard { position: relative; width: clamp(330px, 36vw, 640px); height: 100%; padding: clamp(26px, 2.8vw, 48px); display: flex; flex-direction: column; overflow: hidden; }
 .pcard-intro { width: clamp(330px, 40vw, 720px); padding-inline-start: 0; justify-content: center; }
@@ -538,10 +538,6 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
   .cq-grid { grid-template-columns: 1fr; }
   .sea-grid { grid-template-columns: 1fr; }
   .sea-grid article:nth-child(even) { transform: none; }
-  .path-pin { height: auto; display: block; padding-block: 70px; }
-  .path-track { flex-direction: column; width: auto; height: auto; padding-inline: var(--gut); }
-  .pcard, .pcard-intro { width: 100%; height: auto; min-height: 0; }
-  .pcard h3 { margin-top: 40px; }
   .tk-grid { grid-template-columns: 1fr; }
   .notebook::before { right: 104px; }
   .notebook li { grid-template-columns: 104px 1fr; }
@@ -556,7 +552,8 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; }
-  .path-pin { height: auto; overflow: visible; padding-block: 12vh; }
+  .bridge { height: 100svh; }
+  .path-pin { position: static; height: auto; overflow: visible; padding-block: 12vh; }
   .path-track { flex-wrap: wrap; width: auto; height: auto; }
   .pcard { height: auto; min-height: 560px; }
 }
@@ -677,7 +674,7 @@ html.case-open, html.case-open body { overflow: hidden; }
   .hero-cue { display: none; }
 
   /* bridge */
-  .bridge-word { font-size: 42vw; margin-top: 0; }
+  .bridge-word { font-size: 31vw; margin-top: 0; }
   .pier { top: 92px; font-size: 26px; }
   .bridge-q { font-size: 17px; bottom: 44px; }
 
@@ -690,16 +687,13 @@ html.case-open, html.case-open body { overflow: hidden; }
   .habit-n { font-size: 130px; }
 
   /* voices: brand chips you can swipe, quote takes the screen */
-  .voices-grid { grid-template-areas: "head" "tabs" "stage"; }
+  .voices-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "tabs" "stage"; }
   .voices-head h2 { font-size: 58px; }
-  .voice-tabs {
-    flex-direction: row; gap: 8px; overflow-x: auto; border-top: 0; margin-inline: calc(var(--gut) * -1);
-    padding: 4px var(--gut) 8px; scroll-snap-type: x proximity; scrollbar-width: none;
-  }
-  .voice-tabs::-webkit-scrollbar { display: none; }
-  .vt { flex: 0 0 auto; grid-template-columns: auto; padding: 10px 14px; border: 2px solid currentColor; scroll-snap-align: start; }
+  /* every brand visible and thumb-sized: a wrapping set of buttons, no hidden overflow */
+  .voice-tabs { flex-direction: row; flex-wrap: wrap; gap: 8px; border-top: 0; }
+  .vt { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 16px; border: 2px solid currentColor; }
+  .vt-b { font-size: 19px; line-height: 1; }
   .vt-k, .vt-t { display: none; }
-  .vt-b { font-size: 20px; }
   .vt[aria-selected="true"] { background: var(--vfg); color: var(--vbg); }
   .vt[aria-selected="true"] .vt-b { opacity: 1; }
   .tone-map { display: none; }
@@ -724,16 +718,16 @@ html.case-open, html.case-open body { overflow: hidden; }
   .case-crumb { font-size: 13px; }
 
   /* path: a native swipe carousel instead of a tall stack */
-  .path-pin { padding-block: 80px 40px; }
-  .path-track {
-    flex-direction: row; width: auto; height: auto; overflow-x: auto; scroll-snap-type: x proximity;
-    padding: 0 var(--gut) 16px; gap: 14px; scrollbar-width: none; overscroll-behavior-x: contain;
-  }
-  .path-track::-webkit-scrollbar { display: none; }
-  .pcard { flex: 0 0 84vw; width: auto; min-height: 560px; scroll-snap-align: center; }
-  .pcard-intro { flex-basis: 78vw; padding-inline-start: 0; min-height: 0; }
-  .pcard-intro h2 { font-size: 48px; }
-  .pcard h3 { font-size: 46px; margin-top: 48px; }
+  .bridge { height: 190svh; }
+  .path-pin { padding-top: 56px; }
+  .path-track { flex-direction: row; width: max-content; height: min(calc(100svh - 96px), 640px); gap: 12px; padding-inline: var(--gut); }
+  .pcard { flex: 0 0 82vw; width: 82vw; height: 100%; min-height: 0; padding: 22px; }
+  .pcard-intro { flex-basis: 74vw; width: 74vw; padding-inline-start: 0; }
+  .pcard-intro h2 { font-size: 44px; }
+  .pcard h3 { font-size: 40px; margin: auto 0 10px; }
+  .pc-role { font-size: 14px; margin-bottom: 12px; padding-bottom: 10px; }
+  .pcard ul { gap: 5px; font-size: 13.5px; line-height: 1.75; }
+  .pc-note { margin-top: 10px; font-size: 13px; }
 
   /* brands + tools */
   .mq-in { font-size: 64px; }
