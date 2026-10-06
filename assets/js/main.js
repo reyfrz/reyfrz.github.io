@@ -324,8 +324,9 @@
       let off = 0;
       travellers.forEach((s, i) => {
         const w = ws[i];
-        const pos = (t * SPEED + L - off) % L;
+        // each label sits its OWN width + a gap behind the one ahead, so none can overlap
         off += w + GAP;
+        const pos = (t * SPEED + L - off) % L;
         const fits = pos <= laneW - w;
         s.style.transform = `translate3d(${(-pos).toFixed(1)}px,0,0)`;
         const edge = Math.min(pos, laneW - w - pos);
