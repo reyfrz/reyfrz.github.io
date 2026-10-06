@@ -74,22 +74,24 @@
       this.segs = [];
       this.bars = [];
       let last = 0;
-      const seg = (s) => {
+      // each piece's helper tatweel is clipped off at the letter's own joining point,
+      // so at rest the pieces meet exactly where the font would join them natively
+      const seg = (s, cutR, cutL) => {
         const e = document.createElement('span');
-        e.className = 'kseg';
+        e.className = 'kseg' + (cutR ? ' cut-r' : '') + (cutL ? ' cut-l' : '');
         e.textContent = s;
         this.vis.append(e);
         this.segs.push(e);
       };
       this.joints.forEach((j, i) => {
-        seg((i ? TATWEEL : '') + this.text.slice(last, j + 1) + TATWEEL);
+        seg((i ? TATWEEL : '') + this.text.slice(last, j + 1) + TATWEEL, i > 0, true);
         const bar = document.createElement('span');
         bar.className = 'kbar';
         this.vis.append(bar);
         this.bars.push(bar);
         last = j + 1;
       });
-      seg((this.joints.length ? TATWEEL : '') + this.text.slice(last));
+      seg((this.joints.length ? TATWEEL : '') + this.text.slice(last), this.joints.length > 0, false);
       el.append(sr, this.vis);
       this.len = 0;
       this.tw = 0;
@@ -101,6 +103,7 @@
       c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
       const m = c.measureText(TATWEEL);
       this.tw = m.width;
+      this.vis.style.setProperty('--tw', this.tw.toFixed(2) + 'px');
       this.asc = m.actualBoundingBoxAscent;
       this.vis.style.setProperty('--kb', (-m.actualBoundingBoxDescent).toFixed(2) + 'px');
       this.vis.style.setProperty('--kh', (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent).toFixed(2) + 'px');
@@ -114,10 +117,9 @@
     setLen(px) {
       this.len = Math.max(0, px);
       const per = this.len / (this.bars.length || 1);
-      const extra = per - 2 * this.tw; // each joint already carries two tatweels
       this.bars.forEach((b) => {
-        b.style.width = Math.max(0, extra).toFixed(2) + 'px';
-        b.style.marginLeft = Math.min(0, extra).toFixed(2) + 'px';
+        b.style.width = per.toFixed(2) + 'px';
+        b.classList.toggle('is-rest', per < 0.5);
       });
     }
     // the open stretch between the pieces either side of joint i

@@ -83,9 +83,14 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
 .kx { display: inline-block; white-space: nowrap; }
 .kx-in { display: inline-block; white-space: nowrap; }
 .kseg { display: inline-block; white-space: nowrap; }
+/* hide the helper tatweel and give back its space (RTL: a piece's join is on its left) */
+.kseg.cut-l { clip-path: inset(-60% 0 -60% var(--tw, 0px)); margin-left: calc(-1 * var(--tw, 0px) - .5px); }
+.kseg.cut-r { clip-path: inset(-60% var(--tw, 0px) -60% 0); margin-right: calc(-1 * var(--tw, 0px) - .5px); }
+.kseg.cut-l.cut-r { clip-path: inset(-60% var(--tw, 0px) -60% var(--tw, 0px)); }
 .kbar { display: inline-block; position: relative; height: 0; vertical-align: baseline; }
-/* the deck: a flat bar cut to the tatweel's own stroke, tucked 3px into the pieces either side */
-.kbar::before { content: ""; position: absolute; left: -3px; right: -3px; bottom: var(--kb, 0px); height: var(--kh, .1em); background: currentColor; }
+/* the deck: a flat bar cut to the tatweel's own stroke, overlapping the joins by a hair */
+.kbar::before { content: ""; position: absolute; left: -1.5px; right: -1.5px; bottom: var(--kb, 0px); height: var(--kh, .1em); background: currentColor; }
+.kbar.is-rest::before { display: none; }
 .kx-bl { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
 
 /* ───────── chrome ───────── */
