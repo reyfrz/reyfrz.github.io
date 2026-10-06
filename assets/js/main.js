@@ -107,6 +107,16 @@
       this.asc = m.actualBoundingBoxAscent;
       this.vis.style.setProperty('--kb', (-m.actualBoundingBoxDescent).toFixed(2) + 'px');
       this.vis.style.setProperty('--kh', (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent).toFixed(2) + 'px');
+      // where the tatweel's stroke sits inside a piece's box: the clip removes only that
+      // thin band at the joint, so dots and descenders hanging under it stay whole
+      const probe = document.createElement('span');
+      probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+      this.segs[0].append(probe);
+      const base = probe.getBoundingClientRect().top - this.segs[0].getBoundingClientRect().top;
+      probe.remove();
+      const yt = base - m.actualBoundingBoxAscent - 1.5, yb = base + m.actualBoundingBoxDescent + 1.5;
+      this.vis.style.setProperty('--yt', yt.toFixed(2) + 'px');
+      this.vis.style.setProperty('--yb', yb.toFixed(2) + 'px');
       const keep = this.len;
       this.setLen(0);
       this.natural = this.vis.getBoundingClientRect().width;
@@ -229,20 +239,20 @@
     });
   }
 
-  /* ═════════ HERO: one calligraphic stretch per word ═════════ */
+  /* ═════════ HERO: the name fills its column, then gathers as you scroll on ═════════ */
   function initHero() {
     const host = $('.hero-name');
     const lines = $$('.kx', host).map((el) => new Kashida(el));
-    const st = { p: RM ? 1 : 0 };
-    let L = 0;
-    const apply = () => lines.forEach((l) => l.setLen(L * st.p));
+    const st = { open: RM ? 1 : 0, out: 0 };
+    let target = 0;
+    // both lines justified to the same width, like a calligraphic panel
+    const apply = () => lines.forEach((l) => l.setLen(Math.max(0, target - l.natural) * st.open * (1 - st.out)));
     const measure = () => {
       lines.forEach((l) => l.setLen(0));
       host.style.fontSize = '';
-      lines.forEach((l) => l.measure());
-      L = 0.8 * lines[0].fs; // about the length a calligrapher would actually draw
-      fitWidth(host, lines, host.getBoundingClientRect().width, () => Math.max(...lines.map((l) => l.natural + L)));
-      L = 0.8 * lines[0].fs;
+      target = host.getBoundingClientRect().width;
+      fitWidth(host, lines, target, () => Math.max(...lines.map((l) => l.natural)) * 1.25);
+      target = host.getBoundingClientRect().width;
       apply();
     };
     measure();
@@ -250,9 +260,14 @@
     if (hasGSAP && !RM) {
       gsap.timeline({ delay: 0.15 })
         .from('.hero-name .line', { yPercent: 50, opacity: 0, duration: 1.1, stagger: 0.12, ease: 'expo.out' })
-        .to(st, { p: 1, duration: 1.2, ease: 'expo.inOut', onUpdate: apply }, 0.45)
+        .to(st, { open: 1, duration: 1.6, ease: 'expo.inOut', onUpdate: apply }, 0.4)
         .from('.portrait', { y: 30, opacity: 0, duration: 1.3, ease: 'expo.out' }, 0.25)
         .from('.hero .reveal-up', { y: 24, opacity: 0, duration: 0.9, stagger: 0.08, ease: 'expo.out' }, 0.7);
+      // tied to scroll in both directions: down gathers the name in, up stretches it back out
+      ScrollTrigger.create({
+        trigger: '.hero', start: 'top top', end: 'bottom top',
+        onUpdate: (s) => { st.out = s.progress * 0.85; apply(); },
+      });
     }
     return { measure };
   }

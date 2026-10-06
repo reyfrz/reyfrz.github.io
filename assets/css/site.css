@@ -84,9 +84,12 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
 .kx-in { display: inline-block; white-space: nowrap; }
 .kseg { display: inline-block; white-space: nowrap; }
 /* hide the helper tatweel and give back its space (RTL: a piece's join is on its left) */
-.kseg.cut-l { clip-path: inset(-60% 0 -60% var(--tw, 0px)); margin-left: calc(-1 * var(--tw, 0px) - .5px); }
-.kseg.cut-r { clip-path: inset(-60% var(--tw, 0px) -60% 0); margin-right: calc(-1 * var(--tw, 0px) - .5px); }
-.kseg.cut-l.cut-r { clip-path: inset(-60% var(--tw, 0px) -60% var(--tw, 0px)); }
+.kseg.cut-l { margin-left: calc(-1 * var(--tw, 0px) - .5px);
+  clip-path: polygon(var(--tw) -200%, 300% -200%, 300% 300%, -200% 300%, -200% var(--yb), var(--tw) var(--yb), var(--tw) var(--yt), -200% var(--yt), -200% -200%); }
+.kseg.cut-r { margin-right: calc(-1 * var(--tw, 0px) - .5px);
+  clip-path: polygon(-200% -200%, 300% -200%, 300% var(--yt), calc(100% - var(--tw)) var(--yt), calc(100% - var(--tw)) var(--yb), 300% var(--yb), 300% 300%, -200% 300%); }
+.kseg.cut-l.cut-r {
+  clip-path: polygon(-200% -200%, 300% -200%, 300% var(--yt), calc(100% - var(--tw)) var(--yt), calc(100% - var(--tw)) var(--yb), 300% var(--yb), 300% 300%, -200% 300%, -200% var(--yb), var(--tw) var(--yb), var(--tw) var(--yt), -200% var(--yt)); }
 .kbar { display: inline-block; position: relative; height: 0; vertical-align: baseline; }
 /* the deck: a flat bar cut to the tatweel's own stroke, overlapping the joins by a hair */
 .kbar::before { content: ""; position: absolute; left: -1.5px; right: -1.5px; bottom: var(--kb, 0px); height: var(--kh, .1em); background: currentColor; }
