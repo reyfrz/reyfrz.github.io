@@ -12,13 +12,12 @@
   const lerp = (a, b, t) => a + (b - a) * t;
 
   const hasGSAP = typeof window.gsap !== 'undefined';
-  if (hasGSAP) gsap.registerPlugin(ScrollTrigger);
+  if (hasGSAP) { gsap.registerPlugin(ScrollTrigger); ScrollTrigger.config({ ignoreMobileResize: true }); }
 
-  /* ═════════ Kashida: the calligrapher's stretch, live ═════════
-     A word is split at its joints; each joint gets an inline-block holding one
-     tatweel (ـ) scaled to any width. ZWJ on both sides keeps the neighbouring
-     letters in their connected forms, so the stroke reads as one continuous line. */
-  const ZWJ = '‍', TATWEEL = 'ـ';
+  /* ═════════ Kashida: the calligrapher's stretch ═════════
+     Joints are where a letter connects to the next; the stretch is extra tatweels
+     typed into the word at those joints, never markup. */
+  const TATWEEL = 'ـ';
   const JOINS_LEFT = new Set([...'بپتثجچحخسشصضطظعغفقکگلمنهیئيك']);
   const LETTER = /[ء-يٮ-ۓۺ-ۿ]/;
 
@@ -46,65 +45,74 @@
     constructor(el) {
       this.el = el;
       this.text = el.dataset.kx;
-      this.joints = el.dataset.joints
-        ? el.dataset.joints.split(',').map(Number)
-        : autoJoints(this.text);
-      this.build();
-    }
-    build() {
-      const { el, text } = this;
+      this.joints = (el.dataset.joints ? el.dataset.joints.split(',').map(Number) : autoJoints(this.text)).sort((a, b) => a - b);
+      this.n = this.joints.map(() => 0);
       el.textContent = '';
       const sr = document.createElement('span');
       sr.className = 'sr-only';
-      sr.textContent = text;
-      const vis = document.createElement('span');
-      vis.className = 'kx-in';
-      vis.setAttribute('aria-hidden', 'true');
-      this.ks = [];
-      let last = 0;
-      [...this.joints].sort((a, b) => a - b).forEach((j) => {
-        vis.append(document.createTextNode((last ? ZWJ : '') + text.slice(last, j + 1) + ZWJ));
-        const kj = document.createElement('span');
-        kj.className = 'kj';
-        const kg = document.createElement('span');
-        kg.className = 'kg';
-        kj.append(kg);
-        vis.append(kj);
-        this.ks.push(kj);
-        last = j + 1;
-      });
-      vis.append(document.createTextNode((last ? ZWJ : '') + text.slice(last)));
-      this.bl = document.createElement('span');
-      this.bl.className = 'kx-bl';
-      vis.append(this.bl);
-      el.append(sr, vis);
-      this.vis = vis;
-      this.w = this.ks.map(() => 0);
+      sr.textContent = this.text;
+      this.vis = document.createElement('span');
+      this.vis.className = 'kx-in';
+      this.vis.setAttribute('aria-hidden', 'true');
+      this.node = document.createTextNode('');
+      this.vis.append(this.node);
+      el.append(sr, this.vis);
+      this.render();
+    }
+    // The stretch is the font's own tatweel glyphs inside ONE unbroken run of text, so
+    // every engine (Safari included) shapes the joins itself. Never put an element
+    // between letters: WebKit breaks the cursive join at any element boundary.
+    render() {
+      let s = '', last = 0;
+      this.joints.forEach((j, i) => { s += this.text.slice(last, j + 1) + TATWEEL.repeat(this.n[i]); last = j + 1; });
+      this.node.data = s + this.text.slice(last);
     }
     measure() {
-      this.ks.forEach((k) => { k.style.width = '0px'; });
-      const cs = getComputedStyle(this.el);
-      this.fs = parseFloat(cs.fontSize);
-      // the bar copies the tatweel's ink box exactly: same thickness, same height above
-      // the baseline as the font's own joining stroke, so the stretch reads as one line
-      const c = Kashida.ctx || (Kashida.ctx = document.createElement('canvas').getContext('2d'));
-      c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-      const m = c.measureText(TATWEEL);
-      this.asc = m.actualBoundingBoxAscent;
-      this.desc = m.actualBoundingBoxDescent;
-      this.vis.style.setProperty('--kb', (-this.desc).toFixed(2) + 'px');
-      this.vis.style.setProperty('--kh', (this.asc + this.desc).toFixed(2) + 'px');
+      const keep = this.n.slice();
+      this.n = this.n.map(() => 0);
+      this.render();
       this.natural = this.vis.getBoundingClientRect().width;
-      this.set(this.w);
+      this.tw = 1;
+      if (this.joints.length) {
+        this.n[0] = 10;
+        this.render();
+        this.tw = (this.vis.getBoundingClientRect().width - this.natural) / 10 || 1;
+      }
+      this.fs = parseFloat(getComputedStyle(this.el).fontSize);
+      this.n = keep;
+      this.render();
       return this;
     }
-    set(ws) {
-      this.w = ws;
-      for (let i = 0; i < this.ks.length; i++) this.ks[i].style.width = Math.max(0, ws[i] || 0).toFixed(2) + 'px';
+    // total tatweels, spread across the joints
+    set(total) {
+      const t = Math.max(0, Math.round(total)), J = this.joints.length || 1;
+      this.n = this.joints.map((_, i) => Math.floor(t / J) + (i < t % J ? 1 : 0));
+      this.render();
     }
-    setAll(total) {
-      const n = this.ks.length || 1;
-      this.set(this.ks.map(() => total / n));
+    count(px) { return Math.max(0, Math.floor(px / this.tw)); }
+    total() { return this.n.reduce((a, b) => a + b, 0); }
+    // box of the first characters (e.g. the opening letter) or of a tatweel run
+    rangeRect(start, end) {
+      const r = document.createRange();
+      r.setStart(this.node, start);
+      r.setEnd(this.node, Math.min(end, this.node.data.length));
+      return r.getBoundingClientRect();
+    }
+    runRect(i = 0) {
+      let start = this.joints[i] + 1;
+      for (let k = 0; k < i; k++) start += this.n[k];
+      return this.rangeRect(start, start + this.n[i]);
+    }
+  }
+
+  // shrink a display word only if it would overflow its box
+  function fitWidth(host, words, avail, widthOf) {
+    host.style.fontSize = '';
+    words.forEach((w) => w.measure());
+    const need = widthOf();
+    if (need > avail && need > 0) {
+      host.style.fontSize = (words[0].fs * (avail / need) * 0.985).toFixed(2) + 'px';
+      words.forEach((w) => w.measure());
     }
   }
 
@@ -196,13 +204,20 @@
     });
   }
 
-  /* ═════════ HERO: the name opens once, then gathers itself as you scroll on ═════════ */
+  /* ═════════ HERO: one calligraphic stretch per word, opened once ═════════ */
   function initHero() {
-    const lines = $$('.hero-name .kx').map((el) => new Kashida(el));
-    const st = { open: RM ? 1 : 0, out: 0 };
-    const apply = () => lines.forEach((l) => l.setAll(Math.max(0, l.target - l.natural) * st.open * (1 - st.out)));
+    const host = $('.hero-name');
+    const lines = $$('.kx', host).map((el) => new Kashida(el));
+    const st = { p: RM ? 1 : 0 };
+    let n = 0;
+    const apply = () => lines.forEach((l) => l.set(n * st.p));
     const measure = () => {
-      lines.forEach((l) => { l.measure(); l.target = l.el.parentElement.getBoundingClientRect().width; });
+      lines.forEach((l) => l.set(0));
+      host.style.fontSize = '';
+      lines.forEach((l) => l.measure());
+      // about 0.8em of stretch — the length a calligrapher would actually draw
+      n = Math.max(1, Math.round((0.8 * lines[0].fs) / lines[0].tw));
+      fitWidth(host, lines, host.getBoundingClientRect().width, () => Math.max(...lines.map((l) => l.natural + n * l.tw)));
       apply();
     };
     measure();
@@ -210,19 +225,14 @@
     if (hasGSAP && !RM) {
       gsap.timeline({ delay: 0.15 })
         .from('.hero-name .line', { yPercent: 50, opacity: 0, duration: 1.1, stagger: 0.12, ease: 'expo.out' })
-        .to(st, { open: 1, duration: 1.7, ease: 'expo.inOut', onUpdate: apply }, 0.3)
-        .from('.portrait-clip img', { yPercent: 14, scale: 1.18, opacity: 0, duration: 1.6, ease: 'expo.out' }, 0.25)
-        .from('.portrait-frame', { opacity: 0, duration: 1.2, ease: 'power2.out' }, 0.6)
+        .to(st, { p: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: apply }, 0.55)
+        .from('.portrait', { y: 30, opacity: 0, duration: 1.3, ease: 'expo.out' }, 0.25)
         .from('.hero .reveal-up', { y: 24, opacity: 0, duration: 0.9, stagger: 0.08, ease: 'expo.out' }, 0.7);
-      gsap.to(st, {
-        out: 1, ease: 'none', onUpdate: apply,
-        scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 0.5 },
-      });
     }
     return { measure };
   }
 
-  /* ═════════ BRIDGE: پل — the kashida becomes the deck ═════════ */
+  /* ═════════ BRIDGE: پل — the deck is built from one bank to the other ═════════ */
   function initBridge() {
     const sec = $('.bridge');
     const word = $('.bridge-word');
@@ -237,37 +247,46 @@
       return s;
     });
     const st = { p: RM ? 1 : 0 };
-    let maxSlack = 0, laneW = 0;
+    let headW = 0, laneW = 0;
 
-    function calc() {
-      k.measure();
-      maxSlack = Math.max(0, word.getBoundingClientRect().width - k.natural);
-      apply();
-    }
     function apply() {
-      k.setAll(maxSlack * st.p);
-      // lane sits on the deck: between the two letters, just above the stroke
-      const kr = k.ks[0].getBoundingClientRect(), wr = word.getBoundingClientRect();
-      const bl = k.bl.getBoundingClientRect().top - wr.top;
-      const asc = k.asc || k.fs * 0.32;
-      laneW = Math.max(0, kr.width - 20);
-      lane.style.top = (bl - asc - 34 - 6) + 'px';
-      lane.style.left = (kr.left - wr.left + 10) + 'px';
+      // reveal right→left: پ first, then the deck, then ل
+      const W = k.vis.getBoundingClientRect().width;
+      const cut = Math.max(0, (W - headW) * (1 - st.p));
+      k.vis.style.clipPath = `inset(-40% 0 -40% ${cut.toFixed(1)}px)`;
+    }
+    function calc() {
+      k.set(0);
+      word.style.fontSize = '';
+      k.measure();
+      const avail = word.getBoundingClientRect().width;
+      k.set(k.count(avail * 0.97 - k.natural));
+      headW = k.rangeRect(0, 1).width;
+      // the lane rides just above the deck
+      const run = k.runRect(0), wr = word.getBoundingClientRect();
+      const c = Kashida.ctx || (Kashida.ctx = document.createElement('canvas').getContext('2d'));
+      const cs = getComputedStyle(k.el);
+      c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const m = c.measureText(TATWEEL);
+      const baseline = run.top + (m.fontBoundingBoxAscent || k.fs * 0.9);
+      const barTop = baseline - (m.actualBoundingBoxAscent || k.fs * 0.3);
+      laneW = Math.max(0, run.width - 24);
+      lane.style.top = (barTop - wr.top - 40).toFixed(1) + 'px';
+      lane.style.left = (run.left - wr.left + 12).toFixed(1) + 'px';
       lane.style.width = laneW + 'px';
+      apply();
     }
     calc();
     addEventListener('resize', calc);
 
-    // traffic: content crossing from the audience side to the business side
+    // traffic: one speed, nose to tail, so labels never overlap
     let on = false, t0 = 0;
-    // one speed, queued nose-to-tail: labels never overlap, whatever the deck length
     const SPEED = 54, GAP = 26;
     function traffic(now) {
       if (!on) return;
       const t = (now - t0) / 1000;
       const ws = travellers.map((s) => s.offsetWidth);
-      const total = ws.reduce((a, w) => a + w + GAP, 0);
-      const L = Math.max(laneW + GAP, total);
+      const L = Math.max(laneW + GAP, ws.reduce((a, w) => a + w + GAP, 0));
       let off = 0;
       travellers.forEach((s, i) => {
         const w = ws[i];
@@ -276,28 +295,34 @@
         const fits = pos <= laneW - w;
         s.style.transform = `translate3d(${(-pos).toFixed(1)}px,0,0)`;
         const edge = Math.min(pos, laneW - w - pos);
-        s.style.opacity = st.p > 0.92 && fits ? String(clamp(edge / 40, 0, 1)) : '0';
+        s.style.opacity = st.p > 0.96 && fits ? String(clamp(edge / 40, 0, 1)) : '0';
       });
       requestAnimationFrame(traffic);
     }
-    const startTraffic = () => { if (on || RM) return; on = true; t0 = performance.now(); requestAnimationFrame(traffic); };
-    const stopTraffic = () => { on = false; };
+    if (!RM) {
+      new IntersectionObserver(([e]) => {
+        if (e.isIntersecting && !on) { on = true; t0 = performance.now(); requestAnimationFrame(traffic); }
+        else if (!e.isIntersecting) on = false;
+      }).observe(sec);
+    } else travellers.forEach((s) => (s.style.display = 'none'));
 
-    if (!hasGSAP || RM) { apply(); travellers.forEach((s) => (s.style.display = 'none')); return { calc }; }
-
-    gsap.set('.pier', { opacity: 0, y: 30 });
-    gsap.set('.bridge-q', { opacity: 0, y: 24 });
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: sec, start: 'top top', end: () => '+=' + Math.round(innerHeight * 1.5), pin: true, scrub: 0.7,
-        onToggle: (s) => (s.isActive ? startTraffic() : stopTraffic()),
-        onRefresh: calc,
-      },
+    if (!hasGSAP || RM) return { calc };
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 821px)', () => {
+      gsap.set('.pier', { opacity: 0, y: 30 });
+      gsap.set('.bridge-q', { opacity: 0, y: 24 });
+      gsap.timeline({
+        scrollTrigger: { trigger: sec, start: 'top top', end: () => '+=' + Math.round(innerHeight * 1.4), pin: true, scrub: 0.7, onRefresh: calc },
+      })
+        .to(st, { p: 1, duration: 1, ease: 'power2.inOut', onUpdate: apply })
+        .to('.pier', { opacity: 1, y: 0, duration: 0.3, stagger: 0.08 }, 0.72)
+        .to('.bridge-q', { opacity: 1, y: 0, duration: 0.3 }, 0.85)
+        .to({}, { duration: 0.35 });
     });
-    tl.to(st, { p: 1, duration: 1, ease: 'power2.inOut', onUpdate: apply })
-      .to('.pier', { opacity: 1, y: 0, duration: 0.3, stagger: 0.08 }, 0.72)
-      .to('.bridge-q', { opacity: 1, y: 0, duration: 0.3 }, 0.85)
-      .to({}, { duration: 0.35 });
+    // phones: no pinning (it fights the iOS address bar) — the deck builds as it scrolls past
+    mm.add('(max-width: 820px)', () => {
+      gsap.to(st, { p: 1, ease: 'none', onUpdate: apply, scrollTrigger: { trigger: word, start: 'top 85%', end: 'top 35%', scrub: 0.5 } });
+    });
     return { calc };
   }
 
@@ -476,32 +501,11 @@
   function initToc() {
     const rows = $$('.toc-row');
     const serp = $('.serp');
-    const ks = rows.map((row) => {
-      const k = new Kashida($('.toc-title', row));
-      const st = { p: 0, avail: 0 };
-      const leader = $('.toc-leader', row);
-      if (FINE) {
-        row.addEventListener('pointerenter', () => {
-          if (row.classList.contains('is-wrapped') || !k.ks.length || !hasGSAP) return;
-          if (st.p === 0) st.avail = Math.max(0, leader.getBoundingClientRect().width - 10);
-          const per = Math.min(st.avail / k.ks.length, k.fs * 2.2);
-          gsap.to(st, { p: 1, duration: 0.9, ease: 'expo.out', overwrite: true, onUpdate: () => k.setAll(per * k.ks.length * st.p) });
-        });
-        row.addEventListener('pointerleave', () => {
-          if (!hasGSAP) return;
-          const cur = k.w.reduce((a, b) => a + b, 0);
-          gsap.to(st, { p: 0, duration: 0.6, ease: 'expo.out', overwrite: true, onUpdate: () => k.setAll(cur * st.p) });
-        });
-      }
-      return { row, k };
-    });
-
-    const check = () => ks.forEach(({ row, k }) => {
+    // titles wider than their line wrap instead of overflowing
+    const check = () => rows.forEach((row) => {
       row.classList.remove('is-wrapped');
-      k.measure();
-      const line = $('.toc-line', row);
-      const room = line.getBoundingClientRect().width - 80;
-      row.classList.toggle('is-wrapped', k.natural > room || isMobile());
+      const title = $('.toc-title', row), line = $('.toc-line', row);
+      row.classList.toggle('is-wrapped', isMobile() || title.scrollWidth > line.clientWidth - 80);
     });
     check();
     addEventListener('resize', check);
@@ -537,7 +541,7 @@
         const d = row.dataset;
         name.textContent = d.site;
         url.textContent = 'https://' + d.url;
-        title.textContent = trunc(row.querySelector('.toc-title').dataset.kx, 62);
+        title.textContent = trunc(row.querySelector('.toc-title').textContent, 62);
         desc.textContent = trunc(d.desc, 158);
         fav.textContent = d.site.trim()[0];
         if (!on) { place(e); x = tx; y = ty; }
@@ -731,17 +735,28 @@
     const el = $('.cq-but .kx');
     if (!el) return [];
     if (!el._k) el._k = new Kashida(el);
-    const k = el._k;
+    const k = el._k, host = el.parentElement;
     const st = { p: RM ? 1 : 0 };
-    let max = 0;
-    const calc = () => { k.measure(); max = Math.max(0, el.parentElement.getBoundingClientRect().width - k.natural - 10); k.setAll(max * st.p); };
+    let headW = 0;
+    const apply = () => {
+      const W = k.vis.getBoundingClientRect().width;
+      const cut = Math.max(0, (W - headW) * (1 - st.p));
+      k.vis.style.clipPath = `inset(-40% 0 -40% ${cut.toFixed(1)}px)`;
+    };
+    const calc = () => {
+      k.set(0);
+      k.measure();
+      k.set(k.count(host.getBoundingClientRect().width * 0.96 - k.natural));
+      headW = k.rangeRect(0, 2).width;
+      apply();
+    };
     calc();
     addEventListener('resize', calc);
     const kills = [() => removeEventListener('resize', calc)];
     if (!hasGSAP || RM) return kills;
     const tw = gsap.to(st, {
-      p: 1, ease: 'none', onUpdate: () => k.setAll(max * st.p),
-      scrollTrigger: { trigger: el, scroller, start: 'top 92%', end: 'top 30%', scrub: 0.6, onRefresh: calc },
+      p: 1, ease: 'none', onUpdate: apply,
+      scrollTrigger: { trigger: el, scroller, start: 'top 90%', end: 'top 40%', scrub: 0.6 },
     });
     kills.push(() => { tw.scrollTrigger && tw.scrollTrigger.kill(); tw.kill(); });
     return kills;
@@ -865,7 +880,7 @@
       gsap.set(els, { y: 36, opacity: 0 });
       const trigs = ScrollTrigger.batch(els, {
         scroller, start: 'top 90%', once: true,
-        onEnter: (b) => gsap.to(b, { y: 0, opacity: 1, duration: 1.1, stagger: 0.07, ease: 'expo.out', overwrite: true }),
+        onEnter: revealBatch,
       });
       return [() => { trigs.forEach((tr) => tr.kill()); gsap.set(els, { clearProps: 'transform,opacity' }); }];
     }
@@ -1029,20 +1044,27 @@
     });
   }
 
-  /* ═════════ CONTACT: سلام, stretched by the pointer ═════════ */
+  /* ═════════ CONTACT: «تمـــاس», fitted to the screen ═════════ */
   function initContact() {
     const sec = $('.contact');
-    const el = $('.ct-hello .kx');
-    const k = new Kashida(el);
-    const st = { p: RM ? 1 : 0, aim: 0.75, cur: 0.75 };
-    let max = 0;
+    const host = $('.ct-hello');
+    const k = new Kashida($('.kx', host));
+    const st = { p: RM ? 1 : 0 };
+    let n = 0;
     const calc = () => {
+      k.set(0);
+      host.style.fontSize = '';
       k.measure();
-      max = Math.max(0, el.parentElement.getBoundingClientRect().width - parseFloat(getComputedStyle(el.parentElement).paddingLeft) * 2 - k.natural);
-      k.setAll(max * st.p * st.cur);
+      n = Math.max(1, Math.round((0.9 * k.fs) / k.tw));
+      const pad = parseFloat(getComputedStyle(host).paddingLeft) * 2;
+      fitWidth(host, [k], host.clientWidth - pad, () => k.natural + n * k.tw);
+      k.set(n * st.p);
     };
     calc();
     addEventListener('resize', calc);
+    if (hasGSAP && !RM) {
+      gsap.to(st, { p: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: () => k.set(n * st.p), scrollTrigger: { trigger: host, start: 'top 80%', once: true } });
+    }
 
     const btn = $('.ct-mail');
     btn.addEventListener('click', async () => {
@@ -1056,22 +1078,17 @@
       btn.classList.add('is-copied');
       setTimeout(() => btn.classList.remove('is-copied'), 1800);
     });
+  }
 
-    if (!hasGSAP || RM) return;
-    gsap.to(st, {
-      p: 1, ease: 'none', onUpdate: () => k.setAll(max * st.p * st.cur),
-      scrollTrigger: { trigger: sec, start: 'top 85%', end: 'top 20%', scrub: 0.6, onRefresh: calc },
-    });
-    if (FINE) {
-      sec.addEventListener('pointermove', (e) => { st.aim = 0.35 + 0.65 * (1 - e.clientX / innerWidth); });
-      let on = false;
-      new IntersectionObserver(([e]) => { on = e.isIntersecting; if (on) requestAnimationFrame(loop); }).observe(sec);
-      function loop() {
-        if (!on) return;
-        st.cur = lerp(st.cur, st.aim, 0.06);
-        k.setAll(max * st.p * st.cur);
-        requestAnimationFrame(loop);
-      }
+  // A jump (nav link, fast fling) can enter dozens of items at once. Items already
+  // scrolled past appear instantly; only what's on screen fades, with a capped stagger.
+  function revealBatch(batch) {
+    const vh = innerHeight;
+    const onScreen = batch.filter((e) => { const r = e.getBoundingClientRect(); return r.bottom > 0 && r.top < vh; });
+    const passed = batch.filter((e) => !onScreen.includes(e));
+    if (passed.length) gsap.set(passed, { y: 0, opacity: 1, overwrite: true });
+    if (onScreen.length) {
+      gsap.to(onScreen, { y: 0, opacity: 1, duration: 1, ease: 'expo.out', overwrite: true, stagger: Math.min(0.07, 0.42 / onScreen.length) });
     }
   }
 
@@ -1087,7 +1104,7 @@
     gsap.set(els, { y: 36, opacity: 0 });
     ScrollTrigger.batch(els, {
       start: 'top 90%', once: true,
-      onEnter: (batch) => gsap.to(batch, { y: 0, opacity: 1, duration: 1.1, stagger: 0.07, ease: 'expo.out', overwrite: true }),
+      onEnter: revealBatch,
     });
   }
 
