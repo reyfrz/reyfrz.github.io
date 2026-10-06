@@ -616,6 +616,8 @@ body.menu-open .topbar { color: var(--pollen); background: transparent; }
 /* ───────── CASE dialog: full screen, no new page ───────── */
 /* reserve the scrollbar's space so locking scroll never shifts the page sideways */
 html { scrollbar-gutter: stable; }
+/* the page never re-anchors scroll on its own when something above changes size */
+html, body { overflow-anchor: none; }
 html.case-open, html.case-open body { overflow: hidden; }
 .case-curtain {
   position: fixed; inset: 0; z-index: 79; background: var(--night); visibility: hidden;

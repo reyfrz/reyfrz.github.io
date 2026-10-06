@@ -14,6 +14,19 @@
   const hasGSAP = typeof window.gsap !== 'undefined';
   if (hasGSAP) { gsap.registerPlugin(ScrollTrigger); ScrollTrigger.config({ ignoreMobileResize: true }); }
 
+  // iOS fires 'resize' every time the address bar slides in or out while you scroll.
+  // Re-measuring then shifts the page under your finger and kills momentum, so only a
+  // real WIDTH change (rotation, window resize) is allowed to re-lay anything out.
+  const resizeFns = new Set();
+  let lastW = innerWidth;
+  window.addEventListener('resize', () => {
+    if (innerWidth === lastW) return;
+    lastW = innerWidth;
+    resizeFns.forEach((fn) => fn());
+  });
+  const onResize = (fn) => resizeFns.add(fn);
+  const offResize = (fn) => resizeFns.delete(fn);
+
   /* ═════════ Kashida: the calligrapher's stretch ═════════
      Joints are where a letter connects to the next; the stretch is extra tatweels
      typed into the word at those joints, never markup. */
@@ -129,7 +142,7 @@
   /* ═════════ smooth scroll ═════════ */
   let lenis = null;
   function initScroll() {
-    if (RM || !hasGSAP || typeof window.Lenis === 'undefined') return;
+    if (RM || !FINE || !hasGSAP || typeof window.Lenis === 'undefined') return;
     lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 1 });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));
@@ -281,7 +294,7 @@
       apply();
     }
     calc();
-    addEventListener('resize', calc);
+    onResize(calc);
 
     // traffic: one speed, nose to tail, so labels never overlap
     let on = false, t0 = 0;
@@ -511,7 +524,7 @@
       row.classList.toggle('is-wrapped', isMobile() || title.scrollWidth > line.clientWidth - 80);
     });
     check();
-    addEventListener('resize', check);
+    onResize(check);
 
     if (!FINE) {
       rows.forEach((row) => {
@@ -722,8 +735,8 @@
     }
 
     resize();
-    addEventListener('resize', resize);
-    const kills = [() => removeEventListener('resize', resize)];
+    onResize(resize);
+    const kills = [() => offResize(resize)];
     if (!hasGSAP || RM) { progress = 0.33; render(); return kills; }
     const trig = ScrollTrigger.create({
       trigger: sec, scroller, start: 'top top', end: 'bottom bottom',
@@ -749,8 +762,8 @@
       apply();
     };
     calc();
-    addEventListener('resize', calc);
-    const kills = [() => removeEventListener('resize', calc)];
+    onResize(calc);
+    const kills = [() => offResize(calc)];
     if (!hasGSAP || RM) return kills;
     const tw = gsap.to(st, {
       p: 1, ease: 'none', onUpdate: apply,
@@ -830,8 +843,8 @@
     }
 
     resize();
-    addEventListener('resize', resize);
-    const kills = [() => removeEventListener('resize', resize), () => { on = false; }];
+    onResize(resize);
+    const kills = [() => offResize(resize), () => { on = false; }];
     if (RM) return kills;
     const io = new IntersectionObserver(([e]) => {
       on = e.isIntersecting;
@@ -896,7 +909,7 @@
       ov.hidden = false;
       if (hasGSAP) gsap.set(ov, { autoAlpha: 0 }); else ov.style.opacity = '0';
       sc.scrollTop = 0;
-      if (hasGSAP && !RM && typeof window.Lenis !== 'undefined') {
+      if (hasGSAP && !RM && FINE && typeof window.Lenis !== 'undefined') {
         const l = new Lenis({ wrapper: sc, content: inner, lerp: 0.09 });
         const tick = (tt) => l.raf(tt * 1000);
         gsap.ticker.add(tick);
@@ -1033,7 +1046,7 @@
       if (RM) return;
       const dir = +mq.dataset.dir;
       let x = 0, w = inner.scrollWidth / 2, on = false;
-      addEventListener('resize', () => { w = inner.scrollWidth / 2; });
+      onResize(() => { w = inner.scrollWidth / 2; });
       new IntersectionObserver(([e]) => { on = e.isIntersecting; }).observe(mq);
       const tick = () => {
         if (on) {
@@ -1065,7 +1078,7 @@
       apply();
     };
     calc();
-    addEventListener('resize', calc);
+    onResize(calc);
     if (hasGSAP && !RM) {
       gsap.to(st, { p: 1, ease: 'none', onUpdate: apply, scrollTrigger: { trigger: host, start: 'top 95%', end: 'top 35%', scrub: true } });
     }
@@ -1133,7 +1146,7 @@
     initNavTheme();
 
     let rt = 0;
-    addEventListener('resize', () => {
+    onResize(() => {
       clearTimeout(rt);
       rt = setTimeout(() => { hero.measure(); if (hasGSAP) ScrollTrigger.refresh(); }, 200);
     });
