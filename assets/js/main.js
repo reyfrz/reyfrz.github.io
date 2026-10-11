@@ -175,18 +175,7 @@
     });
   }
 
-  /* ═════════ chrome: clock, nav theme, progress, cursor ═════════ */
-  function initClock() {
-    const el = $('#clock');
-    let fmt;
-    try {
-      fmt = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', hour12: false });
-    } catch (e) { return; }
-    const tick = () => { el.textContent = fmt.format(new Date()); };
-    tick();
-    setInterval(tick, 15000);
-  }
-
+  /* ═════════ chrome: nav theme, progress ═════════ */
   function initNavTheme() {
     if (!hasGSAP) return;
     $$('main [data-theme]').forEach((sec) => {
@@ -216,26 +205,6 @@
         bar.style.transform = `scaleX(${s.progress.toFixed(4)})`;
         document.body.classList.toggle('is-scrolled', s.scroll() > innerHeight * 0.6);
       },
-    });
-  }
-
-  function initCursor() {
-    if (!FINE || RM) return;
-    const c = $('.cursor'), label = $('.cursor-label');
-    let x = innerWidth / 2, y = innerHeight / 2, tx = x, ty = y;
-    addEventListener('pointermove', (e) => { tx = e.clientX; ty = e.clientY; }, { passive: true });
-    const loop = () => {
-      x = lerp(x, tx, 0.22); y = lerp(y, ty, 0.22);
-      c.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-      requestAnimationFrame(loop);
-    };
-    loop();
-    document.addEventListener('pointerover', (e) => {
-      const t = e.target.closest('[data-cursor], a, button, .vt, .tone-map circle');
-      c.classList.toggle('is-label', !!(t && t.dataset.cursor));
-      c.classList.toggle('is-link', !!(t && !t.dataset.cursor));
-      c.classList.toggle('is-hover', !!(t && t.dataset.cursor));
-      if (t && t.dataset.cursor) label.textContent = t.dataset.cursor;
     });
   }
 
@@ -274,90 +243,39 @@
 
   /* ═════════ BRIDGE: پل — the deck is built from one bank to the other ═════════ */
   function initBridge() {
-    const sec = $('.bridge');
-    const word = $('.bridge-word');
-    const k = new Kashida($('.kx', word));
-    const lane = $('.lane', word);
-    const words = ['تحقیق', 'لحن', 'کلمه‌ی کلیدی', 'قصه', 'داده', 'CTA', 'تقویم محتوایی', 'A/B تست', 'سئو', 'سناریو'];
-    const travellers = words.map((w) => {
-      const s = document.createElement('span');
-      s.className = 'traveller';
-      s.textContent = w;
-      lane.append(s);
-      return s;
-    });
-    const st = { p: RM ? 1 : 0 };
-    let laneW = 0;
-
-    let max = 0;
-    // both letters are always there; the deck grows between them and pushes them apart
-    function apply() { k.setLen(max * st.p); }
-    function calc() {
-      k.setLen(0);
-      word.style.fontSize = '';
-      k.measure();
-      max = Math.max(0, word.getBoundingClientRect().width * 0.97 - k.natural);
-      // lay the lane on the finished deck, just above the stroke
-      k.setLen(max);
-      const gap = k.gapRect(0), wr = word.getBoundingClientRect(), r0 = k.segs[0].getBoundingClientRect();
-      const c = Kashida.ctx;
-      const m = c.measureText(TATWEEL);
-      const baseline = r0.top + (m.fontBoundingBoxAscent || k.fs * 0.9);
-      const barTop = baseline - (k.asc || k.fs * 0.3);
-      laneW = Math.max(0, gap.width - 24);
-      lane.style.top = (barTop - wr.top - 40).toFixed(1) + 'px';
-      lane.style.left = (gap.left - wr.left + 12).toFixed(1) + 'px';
-      lane.style.width = laneW + 'px';
-      apply();
+    const sec = $('.bridge'), svg = $('.bridge-art'), quote = $('.bridge-q');
+    const NS = 'http://www.w3.org/2000/svg';
+    const arch = $('.br-arch', svg), hangers = $('.br-hangers', svg);
+    // hangers drop from the arch to the deck
+    const L = arch.getTotalLength();
+    const hs = [];
+    for (let k = 1; k < 16; k++) {
+      const pt = arch.getPointAtLength((L * k) / 16);
+      if (pt.y > 146) continue;
+      const h = document.createElementNS(NS, 'path');
+      h.setAttribute('d', `M${pt.x.toFixed(1)} ${pt.y.toFixed(1)} V150`);
+      h.setAttribute('pathLength', '1');
+      hangers.append(h);
+      hs.push(h);
     }
-    calc();
-    onResize(calc);
-
-    // traffic: one speed, nose to tail, so labels never overlap
-    let on = false, t0 = 0;
-    const SPEED = 54, GAP = 26;
-    function traffic(now) {
-      if (!on) return;
-      const t = (now - t0) / 1000;
-      const ws = travellers.map((s) => s.offsetWidth);
-      const L = Math.max(laneW + GAP, ws.reduce((a, w) => a + w + GAP, 0));
-      let off = 0;
-      travellers.forEach((s, i) => {
-        const w = ws[i];
-        // each label sits its OWN width + a gap behind the one ahead, so none can overlap
-        off += w + GAP;
-        const pos = (t * SPEED + L - off) % L;
-        const fits = pos <= laneW - w;
-        s.style.transform = `translate3d(${(-pos).toFixed(1)}px,0,0)`;
-        const edge = Math.min(pos, laneW - w - pos);
-        s.style.opacity = st.p > 0.96 && fits ? String(clamp(edge / 40, 0, 1)) : '0';
-      });
-      requestAnimationFrame(traffic);
+    const draw = (el, v) => { el.style.strokeDashoffset = (1 - clamp(v, 0, 1)).toFixed(4); };
+    const parts = { deck: $('.br-deck', svg), arch, water: $('.br-water', svg) };
+    function set(q) {
+      draw(parts.water, q / 0.35);
+      draw(parts.deck, (q - 0.05) / 0.4);
+      draw(parts.arch, (q - 0.2) / 0.45);
+      hs.forEach((h, k) => draw(h, (q - 0.45 - k * 0.015) / 0.12));
+      const v = clamp((q - 0.35) / 0.35, 0, 1);
+      quote.style.opacity = v.toFixed(3);
+      quote.style.transform = `translate3d(0,${((1 - v) * 18).toFixed(1)}px,0)`;
     }
-    if (!RM) {
-      new IntersectionObserver(([e]) => {
-        if (e.isIntersecting && !on) { on = true; t0 = performance.now(); requestAnimationFrame(traffic); }
-        else if (!e.isIntersecting) on = false;
-      }).observe(sec);
-    } else travellers.forEach((s) => (s.style.display = 'none'));
-
-    if (!hasGSAP || RM) return { calc };
-    // The stage is position:sticky — the browser holds it in place while you scroll
-    // at your own pace; scroll position only *drives* the drawing. No pinning, no snapping.
-    const piers = $$('.pier'), quote = $('.bridge-q');
-    const show = (el, v) => { el.style.opacity = v.toFixed(3); el.style.transform = `translate3d(0,${(1 - v) * 24}px,0)`; };
-    const progress = (s) => {
-      const q = s.progress;
-      st.p = clamp(q / 0.6, 0, 1);
-      apply();
-      piers.forEach((el, i) => show(el, clamp((q - 0.55 - i * 0.05) / 0.2, 0, 1)));
-      show(quote, clamp((q - 0.7) / 0.2, 0, 1));
-    };
+    if (!hasGSAP || RM) { set(1); return { calc() {} }; }
+    set(0);
     ScrollTrigger.create({
-      trigger: sec, start: 'top top', end: 'bottom bottom',
-      onUpdate: progress, onRefresh: (s) => { calc(); progress(s); },
+      trigger: sec, start: 'top 85%', end: 'bottom 60%',
+      onUpdate: (st) => set(st.progress), onRefresh: (st) => set(st.progress),
     });
-    return { calc };
+    return { calc() {} };
   }
 
   /* ═════════ word-by-word ink ═════════ */
@@ -421,19 +339,8 @@
   function initVoices() {
     const sec = $('.voices');
     const tabs = $('.voice-tabs'), quote = $('.voice-quote'), meta = $('.voice-meta'), tone = $('.voice-tone');
-    const dotsG = $('.tm-dots'), svg = $('.tone-map svg');
     const root = document.documentElement;
     let cur = -1, timer = 0, userTook = false, inView = false, busy = false, pending = -1;
-
-    // axis labels inside the map
-    const NS = 'http://www.w3.org/2000/svg';
-    [['رسمی', 236, 113, 'end'], ['خودمانی', 4, 113, 'start'], ['احساسی', 126, 14, 'start'], ['اطلاعاتی', 126, 232, 'start']].forEach(([t, x, y, a]) => {
-      const el = document.createElementNS(NS, 'text');
-      el.setAttribute('x', x); el.setAttribute('y', y); el.setAttribute('text-anchor', a);
-      el.setAttribute('direction', 'ltr'); el.setAttribute('opacity', '.7');
-      el.textContent = t;
-      svg.append(el);
-    });
 
     const btns = VOICES.map((v, i) => {
       const b = document.createElement('button');
@@ -445,21 +352,8 @@
       b.querySelector('.vt-t').textContent = v.tone;
       b.addEventListener('click', () => { userTook = true; select(i); });
       tabs.append(b);
-
-      const c = document.createElementNS(NS, 'circle');
-      c.setAttribute('cx', 20 + (1 - v.x) * 200);
-      c.setAttribute('cy', 20 + (1 - v.y) * 200);
-      c.setAttribute('r', 6);
-      c.addEventListener('click', () => { userTook = true; select(i); });
-      const title = document.createElementNS(NS, 'title');
-      title.textContent = v.brand;
-      c.append(title);
-      dotsG.append(c);
-      return { b, c };
+      return { b };
     });
-    const ring = document.createElementNS(NS, 'circle');
-    ring.setAttribute('class', 'ring'); ring.setAttribute('r', 13);
-    dotsG.append(ring);
 
     tabs.addEventListener('keydown', (e) => {
       if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
@@ -484,14 +378,10 @@
       const a = document.createElement('a');
       a.href = v.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'دیدنِ پست ↖';
       meta.append(a);
-      btns.forEach(({ b: bt, c }, j) => {
+      btns.forEach(({ b: bt }, j) => {
         bt.setAttribute('aria-selected', String(j === i));
         bt.tabIndex = j === i ? 0 : -1;
-        c.classList.toggle('on', j === i);
-        c.setAttribute('r', j === i ? 8 : 6);
       });
-      ring.setAttribute('cx', 20 + (1 - v.x) * 200);
-      ring.setAttribute('cy', 20 + (1 - v.y) * 200);
       return splitWords(quote);
     }
 
@@ -534,7 +424,6 @@
   /* ═════════ WRITING: dot leaders give way to kashida ═════════ */
   function initToc() {
     const rows = $$('.toc-row');
-    const serp = $('.serp');
     // titles wider than their line wrap instead of overflowing
     const check = () => rows.forEach((row) => {
       row.classList.remove('is-wrapped');
@@ -543,59 +432,13 @@
     });
     check();
     onResize(check);
-
-    if (!FINE) {
-      rows.forEach((row) => {
-        const d = document.createElement('span');
-        d.className = 'toc-desc';
-        d.textContent = row.dataset.desc;
-        row.append(d);
-      });
-    }
-    if (!FINE || !hasGSAP) return;
-    // the SERP card: how each title + meta description shows up on Google
-    const name = $('.serp-name', serp), url = $('.serp-url', serp), title = $('.serp-title', serp),
-      desc = $('.serp-desc', serp), fav = $('.serp-fav', serp);
-    let x = 0, y = 0, tx = 0, ty = 0, on = false, raf = 0;
-    const trunc = (s, n) => (s.length > n ? s.slice(0, n).replace(/\s+\S*$/, '') + ' …' : s);
-    const loop = () => {
-      x = lerp(x, tx, 0.16); y = lerp(y, ty, 0.16);
-      serp.style.left = x + 'px'; serp.style.top = y + 'px';
-      if (on || Math.abs(x - tx) > 0.5) raf = requestAnimationFrame(loop); else raf = 0;
-    };
-    const place = (e) => {
-      const w = serp.offsetWidth, h = serp.offsetHeight;
-      const rb = e.currentTarget.getBoundingClientRect().bottom;
-      tx = clamp(e.clientX - w * 0.5, 12, innerWidth - w - 12);
-      ty = rb + h + 24 < innerHeight ? rb + 14 : e.currentTarget.getBoundingClientRect().top - h - 14;
-      if (!raf) raf = requestAnimationFrame(loop);
-    };
-    rows.forEach((row) => {
-      row.addEventListener('pointerenter', (e) => {
-        const d = row.dataset;
-        name.textContent = d.site;
-        url.textContent = 'https://' + d.url;
-        title.textContent = trunc(row.querySelector('.toc-title').textContent, 62);
-        desc.textContent = trunc(d.desc, 158);
-        fav.textContent = d.site.trim()[0];
-        if (!on) { place(e); x = tx; y = ty; }
-        on = true;
-        gsap.to(serp, { opacity: 1, scale: 1, rotate: -2, duration: 0.45, ease: 'expo.out', overwrite: true });
-      });
-      row.addEventListener('pointermove', place);
-      row.addEventListener('pointerleave', () => {
-        on = false;
-        gsap.to(serp, { opacity: 0, scale: 0.92, rotate: 0, duration: 0.3, ease: 'power2.in', overwrite: true });
-      });
-    });
-    gsap.set(serp, { scale: 0.92 });
   }
 
   /* ═════════ TALASEA 1: the highway drive ═════════ */
   function initDrive(scroller) {
     const sec = $('.drive'), stage = $('.drive-stage'), cv = $('.drive-canvas');
     const ctx = cv.getContext('2d');
-    const boards = $$('.board'), subs = $$('.sub'), formula = $('.drive-formula');
+    const boards = $$('.board'), subs = $$('.sub');
     const BZ = [78, 158, 238], LEN = 262, BASE = 50; // metres; px per metre on the board element
     const CAM_H = 1.4, LANE = 3.6, HALF = 7.2;
     let W = 0, H = 0, dpr = 1, hz = 0, f = 0, progress = 0;
@@ -736,20 +579,21 @@
         if (z < 2.2 || z > 330) { b.style.opacity = '0'; return; }
         const side = +b.dataset.side;
         const s = f / z;
-        const cx = side * (HALF + (side > 0 ? 3.2 : 4.6) + 6);
+        const tall = W < H;
+        // portrait: overhead gantry boards above the lanes; landscape: roadside boards
+        const cx = tall ? side * 2.2 : side * (HALF + (side > 0 ? 3.2 : 4.6) + 6);
         const left = W / 2 + (cx - 6) * s;
-        const top = hz + (CAM_H - (5 + 5.4)) * s;
+        const top = hz + (CAM_H - (tall ? 7 + 5.4 : 5 + 5.4)) * s;
         b.style.transform = `translate3d(${left.toFixed(1)}px, ${top.toFixed(1)}px, 0) scale(${(s / BASE).toFixed(4)})`;
         b.style.opacity = String(clamp((330 - z) / 70, 0, 1));
         b.style.zIndex = String(1000 - Math.round(z));
       });
 
       // subtitles
-      const marks = [0, 0.16, 0.3, 0.5, 0.7];
+      const marks = [0, 0.3, 0.6];
       let idx = 0;
       marks.forEach((m, i) => { if (progress >= m) idx = i; });
-      subs.forEach((s, i) => s.classList.toggle('is-on', i === idx && progress < 0.9));
-      formula.classList.toggle('is-on', progress >= 0.9);
+      subs.forEach((s, i) => s.classList.toggle('is-on', i === idx));
     }
 
     resize();
@@ -1036,26 +880,6 @@
   }
 
   /* ═════════ PATH: horizontal, right to left ═════════ */
-  function initPath() {
-    const years = { 'pc-a': '۱۴۰۱', 'pc-b': '۱۴۰۳', 'pc-c': '۱۴۰۴', 'pc-edu': '۱۳۹۵' };
-    Object.entries(years).forEach(([c, y]) => { const el = $('.' + c); if (el) el.dataset.y = y; });
-    if (!hasGSAP || RM) return;
-    // Keep scrolling down; the cards slide sideways. The stage is sticky, the section is
-    // exactly as tall as the sideways distance, so the motion is 1:1 with your scroll.
-    const sec = $('.path'), stage = $('.path-pin'), track = $('.path-track');
-    let dist = 0;
-    const size = () => {
-      track.style.transform = 'none';
-      dist = Math.max(0, track.scrollWidth - innerWidth);
-      sec.style.height = (stage.offsetHeight + dist) + 'px';
-    };
-    size();
-    ScrollTrigger.create({
-      trigger: sec, start: 'top top', end: 'bottom bottom', onRefreshInit: size,
-      onUpdate: (s) => { track.style.transform = `translate3d(${(s.progress * dist).toFixed(1)}px,0,0)`; },
-    });
-  }
-
   /* ═════════ marquee that answers scroll speed ═════════ */
   function initMarquee() {
     $$('.mq').forEach((mq) => {
@@ -1131,7 +955,7 @@
   function initReveals() {
     if (!hasGSAP || RM) return;
     const sel = [
-      '.about-t', '.about-lede', '.facts', '.mf-sub', '.habit', '.voices-head > *', '.writing-head > *',
+      '.about-t', '.about-lede', '.facts', '.pr-item', '.path-head > *', '.job', '.voices-head > *', '.writing-head > *',
       '.toc li', '.cases-head > *', '.case-card', '.tk-head > *', '.tk-col', '.tools li', '.ws-head > *', '.notebook li',
       '.ct-lead', '.ct-actions > *', '.ig > *',
     ].join(',');
@@ -1148,14 +972,11 @@
     document.body.classList.remove('is-loading');
     initScroll();
     initAnchors();
-    initClock();
-    initCursor();
     const hero = initHero();
     const bridge = initBridge();
     initManifesto();
     initVoices();
     initToc();
-    initPath();
     initMarquee();
     initContact();
     initCases();
