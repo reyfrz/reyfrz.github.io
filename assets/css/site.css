@@ -200,7 +200,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 .pr-item { border-top: 2px solid var(--night); padding-top: 20px; }
 .pr-line { font: 800 clamp(20px, 1.7vw, 28px)/1.6 var(--f-t); color: var(--violet); }
 .pr-sub { margin-top: 8px; font: 500 clamp(16px, 1.15vw, 19px)/1.9 var(--f-t); max-width: 44ch; }
-.pr-num { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; border-top-color: var(--saffron); }
+.pr-num { border-top-color: var(--saffron); }
 .pr-n { font: 400 clamp(64px, 6vw, 104px)/.8 var(--f-d); color: var(--saffron); }
 .pr-num p { font: 600 clamp(16px, 1.15vw, 19px)/1.8 var(--f-t); }
 
