@@ -150,6 +150,8 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 .hero-role { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; font: 600 clamp(17px, 1.55vw, 26px)/1.4 var(--f-t); color: var(--paper); }
 .hero-role span:first-child { color: var(--pollen); }
 .hero-role-rule { flex: 0 0 clamp(36px, 4vw, 72px); height: 3px; background: var(--saffron); }
+.hero-city { display: inline-flex; align-items: center; gap: .5em; }
+.hero-city::before { content: ""; width: .9em; height: 3px; background: var(--saffron); }
 .hero-main {
   flex: 1; display: grid; align-items: center;
   grid-template-columns: 1fr clamp(220px, 24vw, 430px); gap: clamp(20px, 4vw, 72px);
