@@ -105,11 +105,9 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
   font-size: 17px; line-height: 1.2;
 }
 body.is-scrolled .topbar { background: var(--nav-bg); padding-block: 16px; }
-.nav { display: flex; gap: clamp(18px, 2.4vw, 40px); justify-content: flex-start; }
+.nav { --ng: clamp(22px, 2.8vw, 46px); display: flex; gap: var(--ng); justify-content: flex-start; }
 .nav a, .nav-cta { text-decoration: none; font-weight: 600; position: relative; padding: 6px 0; }
-.nav a { display: inline-flex; align-items: baseline; gap: 7px; }
-.nav a small { font: 700 11px/1 var(--f-t); opacity: .55; transition: opacity .3s; }
-.nav a:hover small, .nav a.is-active small { opacity: 1; }
+.nav a + a::before { content: ""; position: absolute; inset-inline-start: calc(var(--ng) / -2); top: 50%; width: 1px; height: 14px; margin-top: -7px; background: currentColor; opacity: .28; }
 .nav a::after { content: ""; position: absolute; inset: auto 0 -2px 0; height: 3px; background: currentColor; transform: scaleX(0); transform-origin: 100% 50%; transition: transform .45s var(--ease); }
 .nav a:hover::after, .nav a.is-active::after { transform: scaleX(1); }
 .nav-cta { border: 2px solid currentColor; padding: 8px 18px; transition: background .3s, color .3s; }
