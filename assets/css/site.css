@@ -153,7 +153,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
   flex: 1; display: grid; align-items: center;
   grid-template-columns: 1fr clamp(220px, 24vw, 430px); gap: clamp(20px, 4vw, 72px);
 }
-.hero-name { font: 400 clamp(68px, min(15.5vw, 30vh), 290px)/1 var(--f-d); color: var(--pollen); margin: 0; }
+.hero-name { font: 400 clamp(56px, min(11.5vw, 22vh), 210px)/1 var(--f-d); color: var(--pollen); margin: 0; max-width: 4.6em; }
 .hero-name .line { display: block; white-space: nowrap; }
 .hero-name .line + .line { margin-top: -.08em; }
 
@@ -456,7 +456,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
   .topbar { grid-template-columns: 1fr auto; padding-block: 14px; }
   .hero { padding-top: 84px; }
   .hero-main { grid-template-columns: 1fr; gap: 26px; align-content: center; }
-  .hero-name { font-size: 23vw; }
+  .hero-name { font-size: 19vw; }
   .portrait { width: 60vw; justify-self: end; margin-top: 8px; }
   .hero-role { gap: 6px 12px; }
   .hero-foot { grid-template-columns: 1fr; gap: 18px; }
@@ -599,7 +599,7 @@ html.case-open, html.case-open body { overflow: hidden; }
   .hero-main, .hero-foot, .hero-id { display: contents; }
   .hero-role { grid-area: role; font-size: 15px; }
   .hero-role-rule { flex-basis: 28px; }
-  .hero-name { grid-area: name; font-size: 24vw; }
+  .hero-name { grid-area: name; font-size: 19vw; }
   .portrait { grid-area: photo; width: 100%; margin: 0; align-self: end; }
   .portrait-block { transform: translate(-9px, 9px); }
   .hero-hook { grid-area: hook; align-self: end; font-size: 15px; line-height: 1.8; }
