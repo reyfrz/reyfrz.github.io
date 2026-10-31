@@ -101,7 +101,7 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
   position: fixed; inset: 0 0 auto 0; z-index: 60;
   display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: clamp(14px, 3vw, 48px);
   padding: clamp(26px, 3.6vh, 38px) var(--gut) 18px; color: var(--nav-fg); background: transparent;
-  transition: color .5s var(--ease), background-color .5s var(--ease), padding .5s var(--ease);
+  transition: color .5s var(--ease), background-color .5s var(--ease);
   font-size: 17px; line-height: 1.2;
 }
 body.is-scrolled .topbar { background: var(--nav-bg); padding-block: 16px; }
