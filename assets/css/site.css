@@ -105,7 +105,7 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
   font-size: 15px; line-height: 1.2;
 }
 body.is-scrolled .topbar { background: var(--nav-bg); }
-.nav { display: flex; gap: clamp(14px, 2.2vw, 34px); justify-content: center; }
+.nav { display: flex; gap: clamp(18px, 2.4vw, 40px); justify-content: flex-start; }
 .nav a, .nav-cta { text-decoration: none; font-weight: 600; position: relative; padding: 6px 0; }
 .nav a::after { content: ""; position: absolute; inset: auto 0 0 0; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: 100% 50%; transition: transform .45s var(--ease); }
 .nav a:hover::after, .nav a.is-active::after { transform: scaleX(1); }
