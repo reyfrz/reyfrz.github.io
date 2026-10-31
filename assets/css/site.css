@@ -99,13 +99,12 @@ body[data-nav="voice"] { --nav-fg: var(--vfg); --nav-bg: var(--vbg); }
 /* ───────── chrome ───────── */
 .topbar {
   position: fixed; inset: 0 0 auto 0; z-index: 60;
-  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: clamp(14px, 3vw, 48px);
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: clamp(14px, 3vw, 48px);
   padding: 18px var(--gut); color: var(--nav-fg); background: transparent;
   transition: color .5s var(--ease), background-color .5s var(--ease);
   font-size: 15px; line-height: 1.2;
 }
 body.is-scrolled .topbar { background: var(--nav-bg); }
-.brand { font: 400 24px/1 var(--f-d); text-decoration: none; padding-top: 4px; }
 .nav { display: flex; gap: clamp(14px, 2.2vw, 34px); justify-content: center; }
 .nav a, .nav-cta { text-decoration: none; font-weight: 600; position: relative; padding: 6px 0; }
 .nav a::after { content: ""; position: absolute; inset: auto 0 0 0; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: 100% 50%; transition: transform .45s var(--ease); }
@@ -146,9 +145,10 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
   display: flex; flex-direction: column; gap: clamp(10px, 2vh, 28px);
   padding: clamp(84px, 11vh, 110px) var(--gut) clamp(20px, 3.5vh, 36px);
 }
-.hero-role { display: flex; align-items: center; gap: 16px; font: 600 clamp(14px, 1.05vw, 17px)/1.3 var(--f-t); color: var(--paper); }
+.hero-id { display: flex; flex-direction: column; gap: clamp(14px, 2.4vh, 30px); min-width: 0; }
+.hero-role { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; font: 600 clamp(17px, 1.55vw, 26px)/1.4 var(--f-t); color: var(--paper); }
 .hero-role span:first-child { color: var(--pollen); }
-.hero-role-rule { flex: 0 0 clamp(40px, 8vw, 140px); height: 2px; background: currentColor; opacity: .5; }
+.hero-role-rule { flex: 0 0 clamp(36px, 4vw, 72px); height: 3px; background: var(--saffron); }
 .hero-main {
   flex: 1; display: grid; align-items: center;
   grid-template-columns: 1fr clamp(220px, 24vw, 430px); gap: clamp(20px, 4vw, 72px);
@@ -458,8 +458,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
   .hero-main { grid-template-columns: 1fr; gap: 26px; align-content: center; }
   .hero-name { font-size: 23vw; }
   .portrait { width: 60vw; justify-self: end; margin-top: 8px; }
-  .hero-role { flex-wrap: wrap; gap: 4px 12px; }
-  .hero-role-rule { display: none; }
+  .hero-role { gap: 6px 12px; }
   .hero-foot { grid-template-columns: 1fr; gap: 18px; }
   .hero-actions { flex-wrap: wrap; }
   .about-grid, .writing-head, .tl-intro-grid, .ct-grid { grid-template-columns: 1fr; }
@@ -584,7 +583,8 @@ html.case-open, html.case-open body { overflow: hidden; }
   .voices-grid { grid-template-columns: minmax(180px, 4fr) 8fr; }
   .menu-btn { display: inline-block; }
   .nav-cta { display: none; }
-  .topbar { grid-template-columns: 1fr auto auto; }
+  .topbar { grid-template-columns: 1fr auto; }
+  .menu-btn { grid-column: 2; }
 }
 
 /* ───────── PHONE: recomposed, not shrunk ───────── */
@@ -596,8 +596,9 @@ html.case-open, html.case-open body { overflow: hidden; }
   /* hero: name as a full-width block, then portrait and promise side by side */
   .hero { display: grid; grid-template-columns: 1fr 46vw; column-gap: 18px; row-gap: 22px; align-content: center;
     grid-template-areas: "role role" "name name" "hook photo" "acts acts"; padding-bottom: 30px; }
-  .hero-main, .hero-foot { display: contents; }
-  .hero-role { grid-area: role; font-size: 13px; }
+  .hero-main, .hero-foot, .hero-id { display: contents; }
+  .hero-role { grid-area: role; font-size: 15px; }
+  .hero-role-rule { flex-basis: 28px; }
   .hero-name { grid-area: name; font-size: 24vw; }
   .portrait { grid-area: photo; width: 100%; margin: 0; align-self: end; }
   .portrait-block { transform: translate(-9px, 9px); }
