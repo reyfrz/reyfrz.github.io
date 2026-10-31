@@ -350,7 +350,7 @@ body:not([data-nav="violet"]) .nav-cta:hover { color: var(--paper); }
 .rejects-t { font: 700 clamp(18px, 1.6vw, 26px)/1.5 var(--f-t); }
 .rejects ul { display: flex; flex-wrap: wrap; justify-content: center; gap: .1em .6em; margin: 18px 0 28px; font: 400 clamp(56px, 9vw, 170px)/1.15 var(--f-d); color: var(--lilac); }
 .rejects s { text-decoration: none; position: relative; display: inline-block; }
-.rejects s::after { content: ""; position: absolute; inset-inline: -.06em; top: 61%; height: .085em; background: var(--saffron); transform: scaleX(var(--p, 1)); transform-origin: 100% 50%; }
+.rejects s::after { content: ""; position: absolute; inset-inline: -.06em; top: 46%; height: .085em; background: var(--saffron); transform: scaleX(var(--p, 1)); transform-origin: 100% 50%; }
 .rejects-why { font: 600 clamp(18px, 1.5vw, 25px)/1.9 var(--f-t); max-width: 40ch; margin-inline: auto; }
 
 /* ───────── PATH ───────── */
